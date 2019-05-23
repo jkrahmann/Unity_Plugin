@@ -31,9 +31,9 @@ public class VIOSOCamera : MonoBehaviour
     [DllImport("VIOSO_Plugin64")]
     private static extern IntPtr GetRenderEventFunc();
     [DllImport("VIOSO_Plugin64")]
-    private static extern ERROR Init(ref int id, string name, IntPtr texHandle);
+    private static extern ERROR Init(ref int id, string name );
     [DllImport("VIOSO_Plugin64")]
-    private static extern ERROR UpdateTex(int id, IntPtr texHandle);
+    private static extern ERROR UpdateTex(int id, IntPtr texHandleSrc, IntPtr texHandleDest );
     [DllImport("VIOSO_Plugin64")]
     private static extern ERROR Destroy(int id);
     [DllImport("VIOSO_Plugin64")]
@@ -49,9 +49,7 @@ public class VIOSOCamera : MonoBehaviour
     private int viosoID = -1;
     private Quaternion orig_rot = Quaternion.identity;
     private Vector3 orig_pos = Vector3.zero;
-    private Texture2D displayTx;
-    private Display displayO;
-    IntPtr texRes;
+    private Dictionary<RenderTexture, IntPtr> texMap = new Dictionary<RenderTexture, IntPtr>();
 
     public static void ScreenShot(string path)
     {
@@ -87,15 +85,8 @@ public class VIOSOCamera : MonoBehaviour
         orig_rot = cam.transform.localRotation;
         orig_pos = cam.transform.localPosition;
 
-        displayO = Display.displays[cam.targetDisplay];
-        displayTx = new Texture2D(displayO.renderingWidth, displayO.renderingHeight, TextureFormat.RGBA32, false);
-        displayTx.filterMode = FilterMode.Bilinear;
-        displayTx.Apply(false);
-
-        texRes = displayTx.GetNativeTexturePtr();
-
         ERROR err = ERROR.FALSE;
-        err = Init(ref viosoID, cam.name, texRes);
+        err = Init(ref viosoID, cam.name );
         if (ERROR.NONE == err)
         {
             GL.IssuePluginEvent(GetRenderEventFunc(), viosoID); // this will initialize warper in Unity Graphic Library context
@@ -139,7 +130,7 @@ public class VIOSOCamera : MonoBehaviour
             FrustumPlanes pl = new FrustumPlanes();
             if (ERROR.NONE == GetViewClip(viosoID, ref pos, ref rot, ref mV, ref pl))
             {
-
+                mV = mV.transpose;
                 Quaternion q = mV.rotation;
                 Vector3 p = mV.GetColumn(3);
                 cam.transform.localRotation = orig_rot * q;
@@ -151,36 +142,21 @@ public class VIOSOCamera : MonoBehaviour
         }
     }
 
-    private void OnRenderImageB( RenderTexture source, RenderTexture destination )
+    private void OnRenderImage( RenderTexture source, RenderTexture destination )
     {
+        RenderTexture.active = destination;
         if (-1 != viosoID)
         {
-            UpdateTex(viosoID, source.GetNativeTexturePtr());
-            SetTimeFromUnity(Time.timeSinceLevelLoad);
-            GL.IssuePluginEvent(GetRenderEventFunc(), viosoID);
-        }
-    }
-
-    private void OnPostRender()
-    {
-        displayTx.ReadPixels(new Rect(0, 0, displayO.renderingWidth, displayO.renderingHeight), 0, 0, false);
-
-        //byte[] b;
-        //b = displayTx.EncodeToPNG();
-        //System.IO.File.WriteAllBytes(@"D:\Unity\1st\Assets\Plugins\unity.out.png", b);
-
-        displayTx.Apply(false);
-
-        if (-1 != viosoID)
-        {
-            IntPtr texRes2 = displayTx.GetNativeTexturePtr();
-            if ( texRes != texRes2 )
+            IntPtr dst;
+            if (!texMap.TryGetValue(source, out dst))
             {
-                texRes = texRes2;
-                UpdateTex(viosoID, texRes);
+                dst = source.GetNativeTexturePtr();
+                texMap[source] = dst;
             }
+            UpdateTex(viosoID, dst, IntPtr.Zero);
             SetTimeFromUnity(Time.timeSinceLevelLoad);
             GL.IssuePluginEvent(GetRenderEventFunc(), viosoID);
         }
     }
-}
+
+ }

@@ -1,8 +1,6 @@
 // VIOSO_Plugin.cpp : Defines the exported functions for the DLL application.
 #if _MSC_VER
 
-//#define USE_BACKBUFFER_COPY
-
 #define UNITY_WIN 1
 #include <SDKDDKVer.h>
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
@@ -52,9 +50,27 @@ typedef struct UniqueWarper
 	string name;
 	void* pDxDevice;
 	VWB_ERROR err;
-	UniqueWarper() : texHandle( VWB_UNDEFINED_GL_TEXTURE ), pWarper( NULL ), name( "" ), pDxDevice( NULL ), err( VWB_ERROR_FALSE ) {}
-	UniqueWarper( UniqueWarper const& other ) : texHandle( other.texHandle ), pWarper( other.pWarper ), name( other.name ), pDxDevice( other.pDxDevice ), err( other.err ) {}
-	UniqueWarper( VWB_Warper* w, void* tex, string n, void* dev ) : texHandle( tex ), pWarper( w ), name( n ), pDxDevice( dev ), err( VWB_ERROR_FALSE ) {}
+	UniqueWarper() 
+		: texHandle( VWB_UNDEFINED_GL_TEXTURE )
+		, pWarper( NULL )
+		, name( "" )
+		, pDxDevice( NULL )
+		, err( VWB_ERROR_FALSE ) 
+	{}
+	UniqueWarper( UniqueWarper const& other ) 
+		: texHandle( other.texHandle )
+		, pWarper( other.pWarper )
+		, name( other.name )
+		, pDxDevice( other.pDxDevice )
+		, err( other.err )
+	{}
+	UniqueWarper( VWB_Warper* w, void* texSrc, string n, void* dev )
+		: texHandle( texSrc )
+		, pWarper( w )
+		, name( n )
+		, pDxDevice( dev )
+		, err( VWB_ERROR_FALSE )
+	{}
 } UniqueWarper;
 typedef map< int, UniqueWarper > WarperMap;
 
@@ -159,11 +175,7 @@ static void UNITY_INTERFACE_API OnRenderEvent( int eventID )
 		}
 		else
 		{
-			#ifdef USE_BACKBUFFER_COPY
-			VWB_ERROR err = VWB_render( it->second.pWarper, VWB_UNDEFINED_GL_TEXTURE, VWB_STATEMASK_NONE );
-			#else
 			VWB_ERROR err = VWB_render( it->second.pWarper, it->second.texHandle, VWB_STATEMASK_RASTERSTATE );
-			#endif //def USE_BACKBUFFER_COPY
 			if( VWB_ERROR_NONE != err )
 			{
 				VWB_logString( s_logFile, 1, "Error: VWB_render.\n" );
@@ -202,7 +214,7 @@ extern "C" UnityRenderingEvent UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetRen
 	return (UnityRenderingEvent)OnRenderEvent;
 }
 
-extern "C" VWB_ERROR UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Init( int* pChannelID, LPCSTR name, void* texHandle )
+extern "C" VWB_ERROR UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Init( int* pChannelID, LPCSTR name )
 {
 	VWB_ERROR err = VWB_ERROR_NONE;
 	if( NULL == pChannelID || NULL == name || 0 == name[0] )
@@ -313,7 +325,6 @@ extern "C" VWB_ERROR UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Init( int* pChan
 
 	w.pDxDevice = pDxDevice;
 	w.name = name;
-	w.texHandle = texHandle;
 	w.err = err;
 
 	return err;
