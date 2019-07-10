@@ -393,8 +393,7 @@ extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetViewClip( int chann
 		pClip[0] *= -1; // reverse left
 		float t = pClip[1]; // save VIOSO's top
 		pClip[1] = pClip[2]; // Unity's right is VIOSO's right
-		pClip[2] = -pClip[3]; // Unity's bottom is reversed VIOSO's bottom
-		pClip[3] = t; // Unity's top is VIOSO's top
+		pClip[2] = -t; // Unity's bottom is reversed VIOSO's top (because of reversed v texture coordinate)
 		return err;
 	}
 	else
