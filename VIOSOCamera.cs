@@ -36,6 +36,7 @@ public class VIOSOCamera : MonoBehaviour
     private static extern ERROR UpdateTex(int id, IntPtr texHandleSrc, IntPtr texHandleDest );
     [DllImport("VIOSO_Plugin64")]
     private static extern ERROR Destroy(int id);
+    // GetViewProj/Clip will not set the error flag you retreive here
     [DllImport("VIOSO_Plugin64")]
     private static extern ERROR GetError(int id, ref int err);
     [DllImport("VIOSO_Plugin64")]
@@ -156,6 +157,15 @@ public class VIOSOCamera : MonoBehaviour
             UpdateTex(viosoID, dst, IntPtr.Zero);
             SetTimeFromUnity(Time.timeSinceLevelLoad);
             GL.IssuePluginEvent(GetRenderEventFunc(), viosoID);
+            int err1 = 0;
+            GetError(viosoID, ref err1);
+            ERROR err = ERROR.FALSE;
+            err = (ERROR)err1;
+            if (ERROR.NONE != err)
+            {
+                Debug.Log("warper error.");
+                throw new Exception("VIOSOCamera::OnrenderImage: warper error " + err1);
+            }
         }
     }
 
