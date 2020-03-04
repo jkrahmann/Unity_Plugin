@@ -31,12 +31,11 @@ public class VIOSOCamera : MonoBehaviour
     [DllImport("VIOSO_Plugin64")]
     private static extern IntPtr GetRenderEventFunc();
     [DllImport("VIOSO_Plugin64")]
-    private static extern ERROR Init(ref int id, string name );
+    private static extern ERROR Init(ref int id, string name);
     [DllImport("VIOSO_Plugin64")]
-    private static extern ERROR UpdateTex(int id, IntPtr texHandleSrc, IntPtr texHandleDest );
+    private static extern ERROR UpdateTex(int id, IntPtr texHandleSrc, IntPtr texHandleDest);
     [DllImport("VIOSO_Plugin64")]
     private static extern ERROR Destroy(int id);
-    // GetViewProj/Clip will not set the error flag you retreive here
     [DllImport("VIOSO_Plugin64")]
     private static extern ERROR GetError(int id, ref int err);
     [DllImport("VIOSO_Plugin64")]
@@ -87,7 +86,7 @@ public class VIOSOCamera : MonoBehaviour
         orig_pos = cam.transform.localPosition;
 
         ERROR err = ERROR.FALSE;
-        err = Init(ref viosoID, cam.name );
+        err = Init(ref viosoID, cam.name);
         if (ERROR.NONE == err)
         {
             GL.IssuePluginEvent(GetRenderEventFunc(), viosoID); // this will initialize warper in Unity Graphic Library context
@@ -97,16 +96,19 @@ public class VIOSOCamera : MonoBehaviour
             if (ERROR.NONE != err)
             {
                 Debug.Log("Initialization of warper failed.");
+                viosoID = -1;
             }
         }
         else
         {
-            Debug.Log(string.Format("Initialization attempt of warper failed with eror %i.", err ) );
+            Debug.Log(string.Format("Initialization attempt of warper failed with eror %i.", err));
+            viosoID = -1;
         }
 
         if (ERROR.NONE != err)
         {
             Debug.Log("Failed to init camera.");
+            viosoID = -1;
         }
     }
 
@@ -140,10 +142,15 @@ public class VIOSOCamera : MonoBehaviour
                 mP = Matrix4x4.Frustum(pl);
                 cam.projectionMatrix = mP;
             }
+            else
+            {
+                Debug.Log("Failed to get initialized camera. Stoping warper. For detailed information see VIOSOWarpBlend.log");
+                viosoID = -1;
+            }
         }
     }
 
-    private void OnRenderImage( RenderTexture source, RenderTexture destination )
+    private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         RenderTexture.active = destination;
         if (-1 != viosoID)
@@ -157,16 +164,7 @@ public class VIOSOCamera : MonoBehaviour
             UpdateTex(viosoID, dst, IntPtr.Zero);
             SetTimeFromUnity(Time.timeSinceLevelLoad);
             GL.IssuePluginEvent(GetRenderEventFunc(), viosoID);
-            int err1 = 0;
-            GetError(viosoID, ref err1);
-            ERROR err = ERROR.FALSE;
-            err = (ERROR)err1;
-            if (ERROR.NONE != err)
-            {
-                Debug.Log("warper error.");
-                throw new Exception("VIOSOCamera::OnrenderImage: warper error " + err1);
-            }
         }
     }
 
- }
+}
