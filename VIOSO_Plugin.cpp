@@ -130,12 +130,12 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent( UnityGfxDeviceEventType e
 	// Create graphics API implementation upon initialization
 	if( eventType == kUnityGfxDeviceEventInitialize )
 	{
-		VWB_logString( s_logFile,2, "VIOSO Unity Plugin kUnityGfxDeviceEventInitialize\n" );
+		VWB_logString( s_logFile,2, "VIOSO Unity Plugin OnUnityGfxDeviceEventInitialize\n" );
 	}
 	// Cleanup graphics API implementation upon shutdown
 	else if( eventType == kUnityGfxDeviceEventShutdown )
 	{
-		VWB_logString( s_logFile, 2, "VIOSO Unity Plugin kUnityGfxDeviceEventShutdown\n" );
+		VWB_logString( s_logFile, 2, "VIOSO Unity Plugin OnUnityGfxDeviceEventShutdown\n" );
 	}
 	else
 	{
@@ -389,11 +389,46 @@ extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API GetViewClip( int chann
 	auto it = s_warpers.find( channelID );
 	if( s_warpers.end() != it )
 	{
+		// in case of OGL warper, we need to invert rotation direction
+		if( nullptr == it->second.pDxDevice && pRot )
+		{
+			pRot[0] *= -1;
+			pRot[1] *= -1;
+			pRot[2] *= -1;
+		}
 		VWB_ERROR err = VWB_getViewClip( it->second.pWarper, pEye, pRot, pView, pClip ); // pClip is left, top, right, bottom, all outward distances; unity wants left, right, bottom, top in coordinates
 		pClip[0] *= -1; // reverse left
 		float t = pClip[1]; // save VIOSO's top
 		pClip[1] = pClip[2]; // Unity's right is VIOSO's right
 		pClip[2] = -t; // Unity's bottom is reversed VIOSO's top (because of reversed v texture coordinate)
+		// in case of OGL warper, we need to transpose the view matrix
+		if( nullptr == it->second.pDxDevice && pView )
+		{
+			float a;
+			a = pView[1];
+			pView[1] = pView[4];
+			pView[4] = a;
+
+			a = pView[2];
+			pView[2] = pView[8];
+			pView[8] = a;
+
+			a = pView[3];
+			pView[3] = pView[12];
+			pView[12] = a;
+
+			a = pView[6];
+			pView[6] = pView[9];
+			pView[9] = a;
+
+			a = pView[7];
+			pView[7] = pView[13];
+			pView[13] = a;
+
+			a = pView[11];
+			pView[11] = pView[14];
+			pView[14] = a;
+		}
 		return err;
 	}
 	else
@@ -433,7 +468,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			*dot = 0;
 		}
 		strcat_s( s_logFile, ".log" );
-		VWB_logString( s_logFile, 2, "\n\nVIOSO Unity Plugin loaded\n", true );
+		VWB_logString( s_logFile, 2, "\n\nVIOSO Unity Plugin 1.1.0 loaded\n", true );
 		break;
 	case DLL_THREAD_ATTACH:
 		break;
